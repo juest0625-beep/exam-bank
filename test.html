@@ -3,8 +3,11 @@
 <head><meta charset="UTF-8"><title>Test</title></head>
 <body>
 <h1>題庫測試</h1>
-<button onclick="loadSubject('國文')">載入國文</button>
-<button onclick="loadSubject('英文')">載入英文</button>
+<button onclick="loadSubject('國文','chinese')">載入國文</button>
+<button onclick="loadSubject('英文','english')">載入英文</button>
+<button onclick="loadSubject('數學','math')">載入數學</button>
+<button onclick="loadSubject('自然','science')">載入自然</button>
+<button onclick="loadSubject('社會','social')">載入社會</button>
 <button onclick="startQuiz()">開始做題</button>
 <div id="status"></div>
 <div id="question"></div>
@@ -18,9 +21,9 @@ function log(msg) {
   console.log(msg);
 }
 
-async function loadSubject(subj) {
+async function loadSubject(subj, file) {
   currentSubject = subj;
-  log('載入中: ' + subj);
+  log('載入中: ' + subj + ' (' + file + ')');
 
   const varName = 'QUESTIONS_' + subj;
   if (window[varName]) {
@@ -31,7 +34,7 @@ async function loadSubject(subj) {
 
   try {
     const script = document.createElement('script');
-    script.src = 'js/questions_' + subj + '.js';
+    script.src = 'js/questions_' + file + '.js';
     document.head.appendChild(script);
     await new Promise((resolve, reject) => {
       script.onload = resolve;
