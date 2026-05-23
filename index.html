@@ -322,12 +322,14 @@ let loadingSubject = null;    // Subject currently being loaded
 
 // ── Subject definitions ──
 const SUBJECT_DEFS = [
-  { key: '國文', emoji: '📖', color: '#c62828' },
-  { key: '英文', emoji: '🔤', color: '#1565c0' },
-  { key: '數學', emoji: '🔢', color: '#2e7d32' },
-  { key: '自然', emoji: '🔬', color: '#6a1b9a' },
-  { key: '社會', emoji: '🌍', color: '#e65100' },
+  { key: '國文', emoji: '📖', color: '#c62828', file: 'chinese' },
+  { key: '英文', emoji: '🔤', color: '#1565c0', file: 'english' },
+  { key: '數學', emoji: '🔢', color: '#2e7d32', file: 'math' },
+  { key: '自然', emoji: '🔬', color: '#6a1b9a', file: 'science' },
+  { key: '社會', emoji: '🌍', color: '#e65100', file: 'social' },
 ];
+const SUBJECT_FILE = {};
+SUBJECT_DEFS.forEach(d => { SUBJECT_FILE[d.key] = d.file; });
 
 // ── Init ──
 document.addEventListener('DOMContentLoaded', () => {
@@ -379,7 +381,7 @@ async function selectSubject(subj) {
     loadingSubject = subj;
     card.style.opacity = '0.6';
     try {
-      await loadScript(`js/questions_${subj}.js`);
+      await loadScript(`js/questions_${SUBJECT_FILE[subj]}.js`);
     } catch(e) {
       alert(`載入${subj}題庫失敗，請重整頁面再試。`);
       loadingSubject = null;
@@ -467,7 +469,7 @@ async function startQuiz(count) {
   if (typeof window['QUESTIONS_' + selectedSubject] === 'undefined') {
     document.getElementById('quizArea').classList.add('show');
     document.getElementById('questionCard').innerHTML = '<p style="text-align:center;padding:40px">⏳ 載入題庫中...</p>';
-    await loadScript(`js/questions_${selectedSubject}.js`);
+    await loadScript(`js/questions_${SUBJECT_FILE[selectedSubject]}.js`);
     allQuestions = window['QUESTIONS_' + selectedSubject] || [];
   }
 

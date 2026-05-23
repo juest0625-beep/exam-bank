@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head><meta charset="UTF-8"><title>Test</title></head>
+<body>
+<h1>題庫測試</h1>
+<button onclick="loadSubject('國文')">載入國文</button>
+<button onclick="loadSubject('英文')">載入英文</button>
+<button onclick="startQuiz()">開始做題</button>
+<div id="status"></div>
+<div id="question"></div>
+
+<script>
+let allQuestions = [];
+let currentSubject = null;
+
+function log(msg) {
+  document.getElementById('status').innerHTML += '<br>' + msg;
+  console.log(msg);
+}
+
+async function loadSubject(subj) {
+  currentSubject = subj;
+  log('載入中: ' + subj);
+
+  const varName = 'QUESTIONS_' + subj;
+  if (window[varName]) {
+    allQuestions = window[varName];
+    log('已快取，共 ' + allQuestions.length + ' 題');
+    return;
+  }
+
+  try {
+    const script = document.createElement('script');
+    script.src = 'js/questions_' + subj + '.js';
+    document.head.appendChild(script);
+    await new Promise((resolve, reject) => {
+      script.onload = resolve;
+      script.onerror = () => reject(new Error('載入失敗'));
+    });
+    allQuestions = window[varName] || [];
+    log('載入完成，共 ' + allQuestions.length + ' 題');
+    log('第一題: ' + (allQuestions[0]?.question?.substring(0, 50) || 'none'));
+  } catch(e) {
+    log('錯誤: ' + e.message);
+  }
+}
+
+function startQuiz() {
+  if (!allQuestions.length) {
+    log('尚未載入題目！');
+    return;
+  }
+  const q = allQuestions[0];
+  document.getElementById('question').innerHTML = `
+    <h3>${currentSubject} - 第1題</h3>
+    <p>${q.question}</p>
+    ${q.options.map(o => `<p>${o.label}) ${o.text}</p>`).join('')}
+    <p>答案: ${q.answer}</p>
+  `;
+  log('顯示題目完成');
+}
+</script>
+</body>
+</html>
