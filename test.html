@@ -1,66 +1,104 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-<head><meta charset="UTF-8"><title>Test</title></head>
+<head><meta charset="UTF-8"><title>題庫測試</title>
+<style>
+body{font-family:sans-serif;padding:20px;max-width:600px;margin:0 auto}
+button{margin:4px;padding:10px 16px;font-size:15px}
+#log{background:#1a1a1a;color:#0f0;padding:12px;font-family:monospace;font-size:13px;white-space:pre-wrap;border-radius:8px;max-height:400px;overflow-y:auto;margin:12px 0}
+#question{margin:12px 0;padding:12px;background:#f5f0eb;border-radius:8px}
+.option{padding:8px;margin:4px 0;background:#fff;border-radius:6px;cursor:pointer}
+.option:hover{background:#e8e0d0}
+.option.correct{background:#e8f5e9;border-left:3px solid #2e7d32}
+.option.wrong{background:#ffebee;border-left:3px solid #c62828}
+</style>
+</head>
 <body>
-<h1>題庫測試</h1>
-<button onclick="loadSubject('國文','chinese')">載入國文</button>
-<button onclick="loadSubject('英文','english')">載入英文</button>
-<button onclick="loadSubject('數學','math')">載入數學</button>
-<button onclick="loadSubject('自然','science')">載入自然</button>
-<button onclick="loadSubject('社會','social')">載入社會</button>
-<button onclick="startQuiz()">開始做題</button>
-<div id="status"></div>
+<h1>🔧 題庫載入測試</h1>
+<p>點擊載入後觀察下方 log，如果有紅色錯誤請截圖給我。</p>
+<button onclick="test('國文','chinese')">📖 載入國文</button>
+<button onclick="test('英文','english')">🔤 載入英文</button>
+<button onclick="test('數學','math')">🔢 載入數學</button>
+<button onclick="test('自然','science')">🔬 載入自然</button>
+<button onclick="test('社會','social')">🌍 載入社會</button>
+<button onclick="startQuiz()" style="background:#8b4513;color:#fff">🎯 開始做題</button>
+<div id="log"></div>
 <div id="question"></div>
 
 <script>
-let allQuestions = [];
-let currentSubject = null;
+let currentData = [];
+let currentSubject = '';
 
-function log(msg) {
-  document.getElementById('status').innerHTML += '<br>' + msg;
+function log(msg, isError) {
+  const el = document.getElementById('log');
+  el.innerHTML += (isError ? '<span style="color:#f44">' : '') + msg + (isError ? '</span>' : '') + '\n';
+  el.scrollTop = el.scrollHeight;
   console.log(msg);
 }
 
-async function loadSubject(subj, file) {
+async function test(subj, file) {
+  document.getElementById('log').innerHTML = '';
+  document.getElementById('question').innerHTML = '';
   currentSubject = subj;
-  log('載入中: ' + subj + ' (' + file + ')');
-
   const varName = 'QUESTIONS_' + subj;
+
+  log('▶ 開始測試：' + subj + ' (' + file + ')');
+  log('  變數名稱：' + varName);
+
+  // Step 1: Check cache
   if (window[varName]) {
-    allQuestions = window[varName];
-    log('已快取，共 ' + allQuestions.length + ' 題');
+    log('✅ 已有快取，' + window[varName].length + ' 題');
+    currentData = window[varName];
     return;
   }
 
+  // Step 2: Fetch
+  const url = 'js/questions_' + file + '.js';
+  log('📡 fetch: ' + url);
   try {
-    const script = document.createElement('script');
-    script.src = 'js/questions_' + file + '.js';
-    document.head.appendChild(script);
-    await new Promise((resolve, reject) => {
-      script.onload = resolve;
-      script.onerror = () => reject(new Error('載入失敗'));
-    });
-    allQuestions = window[varName] || [];
-    log('載入完成，共 ' + allQuestions.length + ' 題');
-    log('第一題: ' + (allQuestions[0]?.question?.substring(0, 50) || 'none'));
+    const resp = await fetch(url);
+    log('  HTTP ' + resp.status + ', Content-Type: ' + resp.headers.get('content-type'));
+    if (!resp.ok) { log('❌ HTTP error', true); return; }
+
+    const text = await resp.text();
+    log('  下載 ' + text.length + ' chars');
+
+    // Step 3: Execute
+    log('🔧 執行 JS...');
+    try {
+      new Function(text)();
+      log('  JS 執行完成');
+    } catch(e) {
+      log('❌ JS 執行錯誤: ' + e.message, true);
+      return;
+    }
+
+    // Step 4: Verify
+    if (window[varName]) {
+      const data = window[varName];
+      log('✅ 成功！' + data.length + ' 題已載入');
+      log('  第一題: ' + (data[0]?.question?.substring(0, 80) || 'N/A'));
+      currentData = data;
+    } else {
+      log('❌ 執行後 ' + varName + ' 不存在', true);
+    }
   } catch(e) {
-    log('錯誤: ' + e.message);
+    log('❌ 錯誤: ' + e.message, true);
   }
 }
 
 function startQuiz() {
-  if (!allQuestions.length) {
-    log('尚未載入題目！');
+  if (!currentData.length) {
+    log('❌ 請先載入題目', true);
     return;
   }
-  const q = allQuestions[0];
+  const q = currentData[0];
   document.getElementById('question').innerHTML = `
-    <h3>${currentSubject} - 第1題</h3>
-    <p>${q.question}</p>
-    ${q.options.map(o => `<p>${o.label}) ${o.text}</p>`).join('')}
-    <p>答案: ${q.answer}</p>
+    <h3>${currentSubject} — 第 1 題</h3>
+    <p><strong>${q.question}</strong></p>
+    ${q.options.map(o => `<div class="option">${o.label}) ${o.text}</div>`).join('')}
+    <p style="color:#888;margin-top:8px">✅ 答案：${q.answer}</p>
   `;
-  log('顯示題目完成');
+  log('✅ 題目顯示成功');
 }
 </script>
 </body>

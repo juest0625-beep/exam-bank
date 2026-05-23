@@ -381,27 +381,37 @@ async function selectSubject(subj) {
     loadingSubject = subj;
     card.style.opacity = '0.6';
     try {
-      await loadScript(`js/questions_${SUBJECT_FILE[subj]}.js`);
+      await loadSubjectData(subj, SUBJECT_FILE[subj]);
     } catch(e) {
-      alert(`載入${subj}題庫失敗，請重整頁面再試。`);
+      alert(`載入${subj}題庫失敗：${e.message}`);
       loadingSubject = null;
+      if (card) card.style.opacity = '1';
       return;
     }
-    card.style.opacity = '1';
+    if (card) card.style.opacity = '1';
     loadingSubject = null;
   }
   allQuestions = window['QUESTIONS_' + subj] || [];
   populateFilters();
 }
 
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = src;
-    s.onload = resolve;
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
+async function loadSubjectData(subj, file) {
+  // Load question data via fetch + Function (more reliable than dynamic <script>)
+  const varName = 'QUESTIONS_' + subj;
+  if (window[varName]) return; // Already loaded
+
+  const resp = await fetch(`js/questions_${file}.js`);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const text = await resp.text();
+
+  // Execute the JS to define the global variable
+  try {
+    new Function(text)();
+  } catch(e) {
+    throw new Error(`JS parse error: ${e.message}`);
+  }
+
+  if (!window[varName]) throw new Error(`變數 ${varName} 未定義`);
 }
 
 function populateFilters() {
@@ -469,7 +479,13 @@ async function startQuiz(count) {
   if (typeof window['QUESTIONS_' + selectedSubject] === 'undefined') {
     document.getElementById('quizArea').classList.add('show');
     document.getElementById('questionCard').innerHTML = '<p style="text-align:center;padding:40px">⏳ 載入題庫中...</p>';
-    await loadScript(`js/questions_${SUBJECT_FILE[selectedSubject]}.js`);
+    try {
+      await loadSubjectData(selectedSubject, SUBJECT_FILE[selectedSubject]);
+    } catch(e) {
+      alert(`載入題庫失敗：${e.message}`);
+      document.getElementById('quizArea').classList.remove('show');
+      return;
+    }
     allQuestions = window['QUESTIONS_' + selectedSubject] || [];
   }
 
