@@ -206,7 +206,13 @@ header p { font-size: 0.85rem; opacity: 0.85; margin-top: 4px; }
 <div class="container">
 
   <!-- Subject Selection -->
-  <div class="subjects" id="subjects"></div>
+  <div class="subjects" id="subjects">
+  <div class="card" data-subject="國文" onclick="selectSubject('國文')"><span class="emoji">📖</span><span class="name">國文</span><span class="count">164 題</span></div>
+  <div class="card" data-subject="英文" onclick="selectSubject('英文')"><span class="emoji">🔤</span><span class="name">英文</span><span class="count">533 題</span></div>
+  <div class="card" data-subject="數學" onclick="selectSubject('數學')"><span class="emoji">🔢</span><span class="name">數學</span><span class="count">328 題</span></div>
+  <div class="card" data-subject="自然" onclick="selectSubject('自然')"><span class="emoji">🔬</span><span class="name">自然</span><span class="count">197 題</span></div>
+  <div class="card" data-subject="社會" onclick="selectSubject('社會')"><span class="emoji">🌍</span><span class="name">社會</span><span class="count">139 題</span></div>
+</div>
 
   <!-- Filters -->
   <div class="filters">
@@ -293,6 +299,13 @@ header p { font-size: 0.85rem; opacity: 0.85; margin-top: 4px; }
   </div>
 </div>
 
+<noscript><p style="text-align:center;padding:40px;color:#c62828">⚠ 此頁面需要 JavaScript 才能運作。請啟用 JavaScript 後重整頁面。</p></noscript>
+<script>
+// ── Inline index (guarantees subjects render even if bank_index.js fails) ──
+if (typeof BANK_INDEX === 'undefined') {
+  var BANK_INDEX = {"國文":{"count":164,"semesters":["七年級上學期","九年級上學期"],"exams":["102會考","103會考","104會考","105會考","106會考","107會考","108會考","109會考","110會考","111會考","112會考","113會考","114上1段七年級國文試題含解答","114會考"],"grades":["七年級","九年級"]},"英文":{"count":533,"semesters":["七年級上學期","七年級下學期","八年級上學期","八年級下學期"],"exams":["102會考","103會考","104會考","105會考","106會考","107會考","108會考","109會考","110會考","111會考","112會考","113會考","114上2段七年級英文試題含解答","114會考"],"grades":["七年級","九年級","八年級"]},"數學":{"count":328,"semesters":["七年級上學期","七年級下學期","八年級上學期","八年級下學期","九年級上學期","九年級下學期"],"exams":["102會考","103會考","104會考","105會考","106會考","107會考","108會考","109會考","110會考","111會考","112會考","113會考","114會考"],"grades":["七年級","八年級","九年級"]},"自然":{"count":197,"semesters":["七年級上學期","八年級上學期","八年級下學期","九年級上學期","九年級下學期"],"exams":["102會考","103會考","104會考","105會考","106會考","107會考","108會考","109會考","110會考","111會考","112會考","113會考","114上1段九年級地科試題含解答","114上1段九年級理化試題含解答","114會考"],"grades":["九年級"]},"社會":{"count":139,"semesters":[],"exams":["102會考","103會考","104會考","105會考","106會考","107會考","108會考","109會考","110會考","111會考","112會考","113會考","114會考"],"grades":["九年級"]}};
+}
+</script>
 <script src="js/bank_index.js"></script>
 <script>
 // ── State ──
