@@ -530,6 +530,9 @@ function renderQuestion() {
   document.getElementById('progressFill').style.width = pct + '%';
 
   let html = `<div class="q-num">📝 ${q.subject} · ${q.semester || q.grade || ''} · ${q.exam || ''}</div>`;
+  if (q.image) {
+    html += `<div style="text-align:center;margin:12px 0"><img src="${q.image}" style="max-width:100%;max-height:400px;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1)" alt="題目圖表" onerror="this.style.display='none'"></div>`;
+  }
   html += `<div class="q-text">${q.question}</div>`;
   html += `<div class="options">`;
 
