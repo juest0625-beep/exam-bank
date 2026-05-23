@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔧 題庫管理後台</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", sans-serif;
+  background: #f5f0eb; color: #2c2416; line-height: 1.7;
+}
+.container { max-width: 900px; margin: 0 auto; padding: 16px; }
+header {
+  background: #2c2416; color: #f5f0eb; padding: 20px; text-align: center;
+  margin-bottom: 20px;
+}
+h1 { font-size: 1.4rem; }
+h2 { font-size: 1.1rem; color: #8b4513; margin: 20px 0 10px; border-bottom: 2px solid #8b4513; padding-bottom: 4px; }
+
+.dispute-card {
+  background: #fff; border-radius: 10px; padding: 16px; margin: 10px 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06); border-left: 4px solid #c62828;
+}
+.dispute-card.resolved { border-left-color: #2e7d32; opacity: 0.7; }
+.dispute-card .d-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.dispute-card .d-id { font-weight: 600; font-size: 0.85rem; color: #8b4513; }
+.dispute-card .d-count { background: #c62828; color: #fff; border-radius: 12px; padding: 2px 10px; font-size: 0.75rem; }
+.dispute-card .d-preview { font-size: 0.85rem; color: #666; margin-bottom: 8px; }
+.dispute-card .d-claims { font-size: 0.8rem; color: #888; margin-bottom: 8px; }
+.dispute-card .d-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn {
+  padding: 6px 16px; border-radius: 6px; border: none; cursor: pointer;
+  font-size: 0.85rem; font-weight: 600;
+}
+.btn-primary { background: #1565c0; color: #fff; }
+.btn-success { background: #2e7d32; color: #fff; }
+.btn-danger { background: #c62828; color: #fff; }
+.btn-secondary { background: #e0d5c5; color: #2c2416; }
+
+.qa-section {
+  background: #faf6f0; border-radius: 8px; padding: 12px; margin: 8px 0;
+  font-size: 0.85rem; display: none;
+}
+.qa-section.show { display: block; }
+
+.tabs { display: flex; gap: 4px; margin: 12px 0; }
+.tab {
+  padding: 8px 16px; background: #e0d5c5; border-radius: 8px 8px 0 0;
+  cursor: pointer; font-size: 0.85rem;
+}
+.tab.active { background: #8b4513; color: #fff; }
+
+.empty-state { text-align: center; padding: 40px; color: #888; }
+.empty-state .icon { font-size: 3rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔧 題庫管理後台</h1>
+  <p style="font-size:0.8rem;opacity:0.8">爭議回報管理 · 題目查證 · 答案更正</p>
+</header>
+
+<div class="container">
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('disputes')">🚩 爭議回報</div>
+    <div class="tab" onclick="switchTab('stats')">📊 題庫統計</div>
+  </div>
+
+  <!-- Disputes Tab -->
+  <div id="tab-disputes">
+    <h2>爭議回報列表（依回報次數排序）</h2>
+    <div id="disputeList">
+      <div class="empty-state">
+        <div class="icon">🎉</div>
+        <p>目前沒有爭議回報</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Tab -->
+  <div id="tab-stats" style="display:none">
+    <h2>題庫統計</h2>
+    <div id="statsContent"></div>
+  </div>
+
+</div>
+
+<script src="../js/questions.js"></script>
+<script>
+// ── State ──
+let disputes = [];
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded', () => {
+  loadDisputes();
+  renderDisputes();
+  renderStats();
+});
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('[id^="tab-"]').forEach(d => d.style.display = 'none');
+  
+  if (tab === 'disputes') {
+    document.querySelectorAll('.tab')[0].classList.add('active');
+    document.getElementById('tab-disputes').style.display = 'block';
+  } else {
+    document.querySelectorAll('.tab')[1].classList.add('active');
+    document.getElementById('tab-stats').style.display = 'block';
+  }
+}
+
+function loadDisputes() {
+  try {
+    disputes = JSON.parse(localStorage.getItem('exam_disputes') || '[]');
+    // Also check resolved disputes
+    const resolved = JSON.parse(localStorage.getItem('exam_disputes_resolved') || '[]');
+    // Merge: group by questionId
+    const grouped = {};
+    disputes.forEach(d => {
+      if (!grouped[d.questionId]) grouped[d.questionId] = [];
+      grouped[d.questionId].push(d);
+    });
+    
+    // Sort by count descending
+    disputes = Object.entries(grouped)
+      .map(([qId, claims]) => ({
+        questionId: qId,
+        claims: claims,
+        count: claims.length,
+        resolved: false
+      }))
+      .sort((a, b) => b.count - a.count);
+    
+    // Add resolved
+    resolved.forEach(r => {
+      disputes.push({...r, resolved: true});
+    });
+  } catch(e) {
+    disputes = [];
+  }
+}
+
+function renderDisputes() {
+  const container = document.getElementById('disputeList');
+  
+  if (disputes.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="icon">🎉</div>
+        <p>目前沒有爭議回報</p>
+        <p style="font-size:0.8rem">學生使用 🚩 回報錯誤 功能後，回報會出現在這裡</p>
+      </div>`;
+    return;
+  }
+
+  // Auto-check: questions disputed ≥ 3 times
+  const autoCheckList = disputes.filter(d => !d.resolved && d.count >= 3);
+
+  let html = '';
+  
+  if (autoCheckList.length > 0) {
+    html += `<div style="background:#fff3e0;border-radius:8px;padding:12px;margin-bottom:16px;border-left:4px solid #e65100">
+      <strong>⚠️ 自動查證提醒：</strong>以下 ${autoCheckList.length} 題已被回報 ≥3 次，建議立即查證：
+      ${autoCheckList.map(d => `<br>· ${d.questionId}（${d.count} 次回報）`).join('')}
+    </div>`;
+  }
+
+  disputes.forEach(d => {
+    const latestClaim = d.claims[0];
+    const claimedAnswers = [...new Set(d.claims.map(c => c.claimedAnswer))];
+    
+    html += `
+    <div class="dispute-card${d.resolved ? ' resolved' : ''}">
+      <div class="d-header">
+        <span class="d-id">📝 ${d.questionId}</span>
+        <span class="d-count">${d.count} 次回報${d.resolved ? ' · 已處理' : ''}</span>
+      </div>
+      <div class="d-preview">${latestClaim.questionPreview || ''}</div>
+      <div class="d-claims">
+        學生認為正確答案：${claimedAnswers.join('、')}
+        ${latestClaim.reason ? `<br>原因：${latestClaim.reason}` : ''}
+        <br><small>最近回報：${new Date(latestClaim.timestamp).toLocaleString('zh-TW')}</small>
+      </div>
+      <div class="qa-section" id="qa-${d.questionId.replace(/[^a-zA-Z0-9]/g, '_')}"></div>
+      <div class="d-actions">
+        <button class="btn btn-primary" onclick="verifyAnswer('${d.questionId}')">🔍 查證</button>
+        <button class="btn btn-success" onclick="resolveDispute('${d.questionId}', true)" ${d.resolved ? 'disabled' : ''}>✅ 通過（維持原答案）</button>
+        <button class="btn btn-danger" onclick="resolveDispute('${d.questionId}', false)" ${d.resolved ? 'disabled' : ''}>✏️ 更正答案</button>
+      </div>
+    </div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function verifyAnswer(qId) {
+  // Find the question in QUESTION_BANK
+  const q = QUESTION_BANK.find(q => q.id === qId);
+  if (!q) {
+    alert('找不到該題目');
+    return;
+  }
+
+  const qaDiv = document.getElementById(`qa-${qId.replace(/[^a-zA-Z0-9]/g, '_')}`);
+  qaDiv.innerHTML = `
+    <strong>📋 完整題目：</strong><br>
+    ${q.question}<br><br>
+    <strong>選項：</strong><br>
+    ${(q.options || []).map((o,i) => `${String.fromCharCode(65+i)}) ${o.text}`).join('<br>')}<br><br>
+    <strong>系統答案：${q.answer}</strong><br>
+    ${q.explanation ? `<strong>詳解：</strong>${q.explanation}<br>` : ''}
+    <strong>知識點：</strong>${q.knowledge_point || '未知'}<br>
+    <strong>來源：</strong>${q.exam || '未知'} · ${q.source || '未知'}<br><br>
+    <em>💡 建議：搜尋「${q.exam || ''} ${q.subject} 第${q.number}題 答案」比對官方解答</em>
+  `;
+  qaDiv.classList.toggle('show');
+
+  // Auto-search trigger: if count >= 3, open search
+  const d = disputes.find(d => d.questionId === qId);
+  if (d && d.count >= 3) {
+    const searchQuery = encodeURIComponent(`${q.exam || ''} ${q.subject} 第${q.number}題 答案`);
+    window.open(`https://www.google.com/search?q=${searchQuery}`, '_blank');
+  }
+}
+
+function resolveDispute(qId, keepOriginal) {
+  const d = disputes.find(d => d.questionId === qId);
+  if (!d) return;
+
+  if (keepOriginal) {
+    // Keep original answer, just mark resolved
+    const resolved = JSON.parse(localStorage.getItem('exam_disputes_resolved') || '[]');
+    resolved.push({
+      questionId: qId,
+      resolvedAt: new Date().toISOString(),
+      action: 'keep_original',
+      claimCount: d.count
+    });
+    localStorage.setItem('exam_disputes_resolved', JSON.stringify(resolved));
+    
+    // Remove from active disputes
+    const active = JSON.parse(localStorage.getItem('exam_disputes') || '[]');
+    const filtered = active.filter(c => c.questionId !== qId);
+    localStorage.setItem('exam_disputes', JSON.stringify(filtered));
+    
+    alert('✅ 已標記為通過，維持原答案');
+  } else {
+    // Correct answer: prompt for new answer
+    const newAnswer = prompt('請輸入正確答案（A/B/C/D）：');
+    if (!newAnswer || !'ABCD'.includes(newAnswer.toUpperCase())) {
+      alert('請輸入有效的答案');
+      return;
+    }
+    
+    const resolved = JSON.parse(localStorage.getItem('exam_disputes_resolved') || '[]');
+    resolved.push({
+      questionId: qId,
+      resolvedAt: new Date().toISOString(),
+      action: 'corrected',
+      newAnswer: newAnswer.toUpperCase(),
+      claimCount: d.count
+    });
+    localStorage.setItem('exam_disputes_resolved', JSON.stringify(resolved));
+    
+    // Remove from active
+    const active = JSON.parse(localStorage.getItem('exam_disputes') || '[]');
+    const filtered = active.filter(c => c.questionId !== qId);
+    localStorage.setItem('exam_disputes', JSON.stringify(filtered));
+    
+    alert(`✅ 已更正答案為 ${newAnswer.toUpperCase()}`);
+  }
+
+  loadDisputes();
+  renderDisputes();
+}
+
+function renderStats() {
+  if (typeof QUESTION_BANK === 'undefined') {
+    document.getElementById('statsContent').innerHTML = '<p>無法載入題庫</p>';
+    return;
+  }
+
+  const counts = {};
+  QUESTION_BANK.forEach(q => {
+    counts[q.subject] = (counts[q.subject] || 0) + 1;
+  });
+
+  const withExpl = {};
+  const withKP = {};
+  QUESTION_BANK.forEach(q => {
+    withExpl[q.subject] = (withExpl[q.subject] || 0) + (q.explanation && q.explanation.length > 10 ? 1 : 0);
+    withKP[q.subject] = (withKP[q.subject] || 0) + (q.knowledge_point ? 1 : 0);
+  });
+
+  let html = '<table style="width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden">';
+  html += '<tr style="background:#8b4513;color:#fff"><th style="padding:10px">科目</th><th>總題數</th><th>有詳解</th><th>有知識點</th><th>完成度</th></tr>';
+  
+  ['國文', '英文', '數學', '自然', '社會'].forEach(subj => {
+    const total = counts[subj] || 0;
+    const expl = withExpl[subj] || 0;
+    const kp = withKP[subj] || 0;
+    const pct = total > 0 ? Math.round((expl / total) * 100) : 0;
+    const color = total >= 200 ? '#2e7d32' : total >= 100 ? '#e65100' : '#c62828';
+    html += `<tr style="border-bottom:1px solid #e0d5c5">
+      <td style="padding:10px;font-weight:600">${subj}</td>
+      <td style="text-align:center;color:${color};font-weight:700">${total}</td>
+      <td style="text-align:center">${expl} (${pct}%)</td>
+      <td style="text-align:center">${kp}</td>
+      <td style="text-align:center">${'█'.repeat(Math.round(pct/10))}${'░'.repeat(10-Math.round(pct/10))} ${pct}%</td>
+    </tr>`;
+  });
+
+  html += '</table>';
+  
+  const totalQ = Object.values(counts).reduce((a,b) => a+b, 0);
+  html += `<p style="margin-top:10px;text-align:center;color:#888">總計：${totalQ} 題</p>`;
+
+  document.getElementById('statsContent').innerHTML = html;
+}
+</script>
+</body>
+</html>
