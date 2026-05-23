@@ -293,17 +293,19 @@ header p { font-size: 0.85rem; opacity: 0.85; margin-top: 4px; }
   </div>
 </div>
 
-<script src="js/questions.js"></script>
+<script src="js/bank_index.js"></script>
 <script>
 // ── State ──
 let selectedSubject = null;
+let allQuestions = [];        // Currently loaded subject's questions
 let quizQuestions = [];
 let currentIndex = 0;
 let score = 0;
 let answered = false;
 let userAnswers = [];
-let wrongKnowledgePoints = {}; // Track wrong answers by knowledge point
+let wrongKnowledgePoints = {};
 let disputeQuestionId = null;
+let loadingSubject = null;    // Subject currently being loaded
 
 // ── Subject definitions ──
 const SUBJECT_DEFS = [
@@ -316,19 +318,28 @@ const SUBJECT_DEFS = [
 
 // ── Init ──
 document.addEventListener('DOMContentLoaded', () => {
+  if (typeof BANK_INDEX === 'undefined') {
+    document.getElementById('subjects').innerHTML = '<p style="text-align:center;padding:40px">⏳ 題庫載入中...</p>';
+    setTimeout(checkIndex, 200);
+    return;
+  }
   renderSubjects();
-  populateFilters();
   renderHistory();
 });
 
-function renderSubjects() {
-  const counts = {};
-  QUESTION_BANK.forEach(q => {
-    counts[q.subject] = (counts[q.subject] || 0) + 1;
-  });
+function checkIndex() {
+  if (typeof BANK_INDEX !== 'undefined') {
+    renderSubjects();
+    renderHistory();
+  } else {
+    setTimeout(checkIndex, 500);
+  }
+}
 
+function renderSubjects() {
   const html = SUBJECT_DEFS.map(s => {
-    const count = counts[s.key] || 0;
+    const info = BANK_INDEX[s.key];
+    const count = info ? info.count : 0;
     const isDisabled = count === 0;
     return `
     <div class="card${isDisabled ? ' disabled' : ''}" data-subject="${s.key}"
@@ -343,39 +354,70 @@ function renderSubjects() {
   document.getElementById('subjects').innerHTML = html;
 }
 
-function selectSubject(subj) {
+async function selectSubject(subj) {
   selectedSubject = subj;
   document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
   const card = document.querySelector(`[data-subject="${subj}"]`);
   if (card) card.classList.add('active');
+
+  // Load subject data if not yet loaded
+  if (typeof window['QUESTIONS_' + subj] === 'undefined') {
+    if (loadingSubject === subj) return; // Already loading
+    loadingSubject = subj;
+    card.style.opacity = '0.6';
+    try {
+      await loadScript(`js/questions_${subj}.js`);
+    } catch(e) {
+      alert(`載入${subj}題庫失敗，請重整頁面再試。`);
+      loadingSubject = null;
+      return;
+    }
+    card.style.opacity = '1';
+    loadingSubject = null;
+  }
+  allQuestions = window['QUESTIONS_' + subj] || [];
   populateFilters();
 }
 
-function populateFilters() {
-  const qs = selectedSubject
-    ? QUESTION_BANK.filter(q => q.subject === selectedSubject)
-    : QUESTION_BANK;
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
 
-  const semesters = [...new Set(qs.map(q => q.semester).filter(Boolean))].sort();
-  const exams = [...new Set(qs.map(q => q.exam).filter(Boolean))].sort();
+function populateFilters() {
+  const info = selectedSubject ? BANK_INDEX[selectedSubject] : null;
 
   const sSel = document.getElementById('semesterFilter');
-  // Keep base options, append dynamic ones
-  const baseOptions = sSel.querySelectorAll('option');
-  // Clear dynamic options (keep first "全部學期")
-  while (sSel.options.length > 7) sSel.remove(7);
-  
+  // Reset to base options
+  sSel.innerHTML = `
+    <option value="">全部學期</option>
+    <option value="七年級上學期">七年級上學期</option>
+    <option value="七年級下學期">七年級下學期</option>
+    <option value="八年級上學期">八年級上學期</option>
+    <option value="八年級下學期">八年級下學期</option>
+    <option value="九年級上學期">九年級上學期</option>
+    <option value="九年級下學期">九年級下學期</option>
+    <option value="歷年會考">📝 歷屆會考</option>`;
+
   const eSel = document.getElementById('examFilter');
-  eSel.innerHTML = '<option value="">所有考試</option>' +
-    exams.map(e => `<option>${e}</option>`).join('');
+  if (info && info.exams) {
+    eSel.innerHTML = '<option value="">所有考試</option>' +
+      info.exams.map(e => `<option>${e}</option>`).join('');
+  } else {
+    eSel.innerHTML = '<option value="">所有考試</option>';
+  }
 }
 
 // ── Question filtering ──
 function getFilteredQuestions() {
-  let qs = selectedSubject
-    ? QUESTION_BANK.filter(q => q.subject === selectedSubject)
-    : QUESTION_BANK;
+  if (!selectedSubject || allQuestions.length === 0) return [];
 
+  let qs = [...allQuestions];
   const semester = document.getElementById('semesterFilter').value;
   if (semester === '歷年會考') {
     qs = qs.filter(q => (q.source || '').includes('會考') || (q.exam || '').includes('會考'));
@@ -386,9 +428,7 @@ function getFilteredQuestions() {
   const exam = document.getElementById('examFilter').value;
   if (exam) qs = qs.filter(q => q.exam === exam);
 
-  // Only questions with options
   qs = qs.filter(q => q.options && q.options.length >= 2);
-
   return qs;
 }
 
@@ -403,10 +443,25 @@ function shuffle(arr) {
 }
 
 // ── Quiz Logic ──
-function startQuiz(count) {
+async function startQuiz(count) {
+  // If no subject selected, load all subjects
+  if (!selectedSubject) {
+    alert('請先選擇一個科目！');
+    return;
+  }
+
+  // Ensure data is loaded
+  if (typeof window['QUESTIONS_' + selectedSubject] === 'undefined') {
+    document.getElementById('quizArea').classList.add('show');
+    document.getElementById('questionCard').innerHTML = '<p style="text-align:center;padding:40px">⏳ 載入題庫中...</p>';
+    await loadScript(`js/questions_${selectedSubject}.js`);
+    allQuestions = window['QUESTIONS_' + selectedSubject] || [];
+  }
+
   const pool = getFilteredQuestions();
   if (pool.length === 0) {
-    alert('請先選擇科目！');
+    alert('沒有符合篩選條件的題目，請調整篩選。');
+    document.getElementById('quizArea').classList.remove('show');
     return;
   }
 
@@ -513,8 +568,8 @@ function submitAnswer() {
   // Show explanation
   const expl = document.getElementById('explanation');
   if (q.explanation && q.explanation.length > 10) {
-    // Detailed explanation format
-    expl.innerHTML = q.explanation;
+    // Detailed explanation format - convert \n to <br>
+    expl.innerHTML = q.explanation.replace(/\n/g, '<br>');
     expl.style.borderLeftColor = isCorrect ? '#2e7d32' : '#c62828';
   } else {
     // Simple fallback
