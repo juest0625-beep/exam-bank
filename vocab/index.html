@@ -78,6 +78,7 @@ header p { font-size: 0.85rem; opacity: 0.85; margin-top: 4px; }
 .word-zh {
   font-size: 1.7rem; font-weight: 600; text-align: center; color: #2e86c1;
 }
+.word-phonetic { font-size: 1.1rem; color: #2e86c1; margin-top: 6px; font-family: 'Times New Roman', serif; }
 .word-pos { font-size: 0.85rem; color: #888; margin-top: 8px; }
 .word-hint { font-size: 0.8rem; color: #aaa; margin-top: 16px; }
 .word-level {
@@ -266,6 +267,7 @@ body.dark .review-item.wrong { background: #301a1a; }
 body.dark .progress-bar { background: #3d3222; }
 body.dark .history-item { border-color: #3d3222; }
 body.dark .word-en { color: #5dade2; }
+body.dark .word-phonetic { color: #85c1e9; }
 body.dark .word-zh { color: #85c1e9; }
 body.dark .word-level.basic1200 { background: #1a3040; color: #5dade2; }
 body.dark .word-level.common800 { background: #302a10; color: #d4ac0d; }
@@ -469,6 +471,7 @@ function renderFlashcard() {
           <div class="card-face card-front">
             <button class="star-btn ${isBm?'bookmarked':''}" id="starFront">${isBm?'★':'☆'}</button>
             <div class="word-en">${w.en}</div>
+            ${w.phonetic ? `<div class="word-phonetic">${w.phonetic}</div>` : ''}
             ${posStr ? `<div class="word-pos">${posStr}</div>` : ''}
             <div class="word-level ${w.level}">${levelLabel}</div>
             <div class="word-hint">點擊卡片看答案</div>
@@ -477,6 +480,7 @@ function renderFlashcard() {
           <div class="card-face card-back">
             <button class="star-btn ${isBm?'bookmarked':''}" id="starBack">${isBm?'★':'☆'}</button>
             <div class="word-en" style="font-size:1.2rem;color:#888;margin-bottom:4px">${w.en}</div>
+            ${w.phonetic ? `<div class="word-phonetic" style="font-size:1rem;margin-bottom:4px">${w.phonetic}</div>` : ''}
             <div class="word-zh">${w.zh}</div>
             ${posStr ? `<div class="word-pos">${posStr}</div>` : ''}
             <div class="word-level ${w.level}">${levelLabel}</div>
@@ -581,6 +585,7 @@ function renderQuiz() {
       </div>
       <div class="quiz-word-card">
         <div class="word-en">${q.en}</div>
+        ${q.phonetic ? `<div class="word-phonetic">${q.phonetic}</div>` : ''}
         <button class="pronounce-btn" id="quizPron">🔊</button>
       </div>
       <div class="quiz-options" id="quizOpts"></div>
